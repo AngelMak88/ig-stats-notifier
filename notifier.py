@@ -15,12 +15,12 @@ if hasattr(sys.stdout, "reconfigure"):
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "")
+RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "").strip()
 RAPIDAPI_HOST = "instagram-looter2.p.rapidapi.com"
 API_BASE = f"https://{RAPIDAPI_HOST}"
 
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 
 IG_USERNAMES = [
     u.strip().lstrip("@")
