@@ -1,9 +1,9 @@
 # ig-stats-notifier
 
-Στέλνει καθημερινά στο Telegram, στις 09:00 ώρα Ελλάδας, τα views των
-τελευταίων reels για μια λίστα Instagram accounts, και μια φορά την
-εβδομάδα (default Κυριακή) μαζί και τα followers. Τρέχει εξ ολοκλήρου μέσω
-**GitHub Actions** — δεν χρειάζεται το PC σου να είναι ανοιχτό.
+Στέλνει καθημερινά στο Telegram, στις 09:00 ώρα Ελλάδας, τα followers και
+τα views των τελευταίων reels για μια λίστα Instagram accounts, μαζί με το
+καλύτερο reel της ημέρας. Τρέχει εξ ολοκλήρου μέσω **GitHub Actions** — δεν
+χρειάζεται το PC σου να είναι ανοιχτό.
 
 ## 1. API: Instagram Looter2 (RapidAPI)
 
@@ -13,8 +13,10 @@ API χρησιμοποιείς ήδη):
 1. Πήγαινε στη σελίδα του
    [Instagram Looter2](https://rapidapi.com/irrors-apis/api/instagram-looter2)
    στο RapidAPI και κάνε subscribe σε ένα plan (το δωρεάν plan έχει όριο
-   **150 requests/μήνα** — γι' αυτό τα followers ελέγχονται μόνο 1
-   φορά/εβδομάδα, όχι καθημερινά).
+   **150 requests/μήνα**· με followers+views καθημερινά για 4 accounts
+   καταναλώνονται ~240/μήνα, άρα το δωρεάν plan θα εξαντλείται πριν το τέλος
+   του μήνα — πρόσθεσε τότε ένα νέο/αναβαθμισμένο key στο `RAPIDAPI_KEY`
+   secret).
 2. Πάρε το **X-RapidAPI-Key** από το dashboard/app σου (πρέπει να είναι το
    key που είναι πραγματικά συνδεδεμένο με το subscription — αν έχεις
    πολλά "Applications" στο RapidAPI, βεβαιώσου ότι διαλέγεις το σωστό).
@@ -54,7 +56,6 @@ python notifier.py
 3. (Προαιρετικό) ίδιο μενού, **Variables** tab, αν θες να αλλάξεις τα
    defaults χωρίς να αγγίξεις τον κώδικα:
    - `IG_USERNAMES` (default: οι 4 λογαριασμοί μέσα στο `notifier.py`)
-   - `WEEKLY_FOLLOWER_CHECK_DAY` (default: `Sunday`)
 4. Tab **Actions** → επίλεξε το workflow "Daily IG stats to Telegram" →
    **Run workflow** για δοκιμή χωρίς να περιμένεις το πρωινό cron.
 
@@ -68,10 +69,11 @@ python notifier.py
 
 ## Request budget (RapidAPI free plan, 150/μήνα)
 
-- Views (`/reels`): 1 call/account/μέρα × 4 accounts × ~30 μέρες ≈ **120/μήνα**
-- Followers (`/profile`): 1 call/account × 4 accounts, μόνο Κυριακές (~4.3
-  φορές/μήνα) ≈ **~17/μήνα**
-- Σύνολο ≈ **137/μήνα**, μέσα στο όριο.
+- Followers (`/profile`) + views (`/reels`): 2 calls/account/μέρα × 4
+  accounts × ~30 μέρες ≈ **~240/μήνα** — ξεπερνάει το δωρεάν όριο πριν το
+  τέλος του μήνα. Αποδεκτό tradeoff (καθημερινά followers > οικονομία
+  requests) — απλά περίμενε να χρειαστεί rotation του `RAPIDAPI_KEY`
+  secret μέσα στον μήνα.
 
 ## Αρχεία
 

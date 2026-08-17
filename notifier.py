@@ -31,13 +31,11 @@ IG_USERNAMES = [
     if u.strip()
 ]
 
-# Weekday name (Python %A, e.g. "Monday") on which the follower count is
-# also checked/reported, in addition to the daily views check. Kept low
-# frequency because the free RapidAPI plan is capped at 150 requests/month:
-# daily views alone is already 4 accounts x ~30 days = ~120 calls/month,
-# leaving only ~30/month (~1x/week for 4 accounts) of headroom.
-WEEKLY_FOLLOWER_CHECK_DAY = os.environ.get("WEEKLY_FOLLOWER_CHECK_DAY") or "Sunday"
-
+# Followers + views are both checked every day. This costs 2 RapidAPI calls
+# per account per day (~240/month for 4 accounts), which exceeds the free
+# plan's 150 requests/month cap — the user has accepted this tradeoff and
+# will rotate/upgrade the RAPIDAPI_KEY when it runs out mid-month rather
+# than throttle the check frequency.
 STATE_PATH = os.path.join(BASE_DIR, "state.json")
 RECENT_REELS_COUNT = 5
 
@@ -127,16 +125,26 @@ def fetch_profile(username):
     }
 
 
-def fetch_recent_reel_views(user_id):
+def fetch_recent_reels(user_id):
     raw = rapidapi_get("/reels", {"id": user_id, "count": RECENT_REELS_COUNT})
     items = raw.get("items") or []
-    views = []
+    reels = []
     for item in items[:RECENT_REELS_COUNT]:
         media = item.get("media") or {}
         play_count = media.get("play_count")
         if play_count is not None:
-            views.append(int(play_count))
-    return views
+            caption_obj = media.get("caption") or {}
+            caption_text = (
+                caption_obj.get("text", "") if isinstance(caption_obj, dict) else ""
+            )
+            reels.append(
+                {
+                    "views": int(play_count),
+                    "code": media.get("code"),
+                    "caption": caption_text.split("\n")[0][:60],
+                }
+            )
+    return reels
 
 
 # ---------------------------------------------------------------------------
@@ -198,44 +206,43 @@ def main():
         raise NotifierError("IG_USERNAMES is empty. Add at least one username.")
 
     now = datetime.now(timezone.utc)
-    check_followers_today = now.strftime("%A") == WEEKLY_FOLLOWER_CHECK_DAY
 
     state = load_state()
     lines = [f"\U0001F4CA IG Stats — {now.strftime('%d %b')}", ""]
     any_success = False
+    best_today = None  # (views, username, caption)
 
     for username in IG_USERNAMES:
         account = state.get(username, {})
         account_lines = [f"@{username}"]
 
         try:
-            # Bootstrap: we always need the numeric user_id for /reels.
-            # Fetch it (and followers, opportunistically) if we don't have
-            # it cached yet, or if today is the weekly follower-check day.
-            if check_followers_today or "user_id" not in account:
-                profile = fetch_profile(username)
-                prev_followers = account.get("followers", profile["followers"])
-                followers_delta = profile["followers"] - prev_followers
-                account.update(profile)
-                account["followers_checked_at"] = now.isoformat()
-                account_lines.append(
-                    f"\U0001F465 {profile['followers']:,} followers"
-                    f"{fmt_delta(followers_delta)}"
-                )
+            profile = fetch_profile(username)
+            prev_followers = account.get("followers", profile["followers"])
+            followers_delta = profile["followers"] - prev_followers
+            account.update(profile)
+            account["followers_checked_at"] = now.isoformat()
+            account_lines.append(
+                f"\U0001F465 {profile['followers']:,} followers"
+                f"{fmt_delta(followers_delta)}"
+            )
 
-            recent_views = fetch_recent_reel_views(account["user_id"])
-            views_total = sum(recent_views)
+            recent_reels = fetch_recent_reels(account["user_id"])
+            views_total = sum(r["views"] for r in recent_reels)
             prev_views_total = account.get("recent_views_total", views_total)
             views_delta = views_total - prev_views_total
             account["recent_views_total"] = views_total
-            account["recent_views_count"] = len(recent_views)
+            account["recent_views_count"] = len(recent_reels)
             account["recent_views_checked_at"] = now.isoformat()
 
-            if recent_views:
+            if recent_reels:
                 account_lines.append(
                     f"\U0001F441 {views_total:,} views στα τελευταία "
-                    f"{len(recent_views)} reels{fmt_delta(views_delta)}"
+                    f"{len(recent_reels)} reels{fmt_delta(views_delta)}"
                 )
+                top_reel = max(recent_reels, key=lambda r: r["views"])
+                if best_today is None or top_reel["views"] > best_today[0]:
+                    best_today = (top_reel["views"], username, top_reel["caption"])
 
             any_success = True
             state[username] = account
@@ -246,6 +253,13 @@ def main():
 
         lines.extend(account_lines)
         lines.append("")
+
+    if best_today:
+        views, username, caption = best_today
+        lines.append(
+            f"\U0001F3C6 Top reel σήμερα: @{username} — {views:,} views"
+            + (f" («{caption}»)" if caption else "")
+        )
 
     save_state(state)
 
