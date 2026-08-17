@@ -24,9 +24,9 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 IG_USERNAMES = [
     u.strip().lstrip("@")
-    for u in os.environ.get(
-        "IG_USERNAMES",
-        "mynamesophiaaa,yourfavoritesophiaaa,sophiaamaryme1,itssophia.mr",
+    for u in (
+        os.environ.get("IG_USERNAMES")
+        or "mynamesophiaaa,yourfavoritesophiaaa,sophiaamaryme1,itssophia.mr"
     ).split(",")
     if u.strip()
 ]
@@ -36,7 +36,7 @@ IG_USERNAMES = [
 # frequency because the free RapidAPI plan is capped at 150 requests/month:
 # daily views alone is already 4 accounts x ~30 days = ~120 calls/month,
 # leaving only ~30/month (~1x/week for 4 accounts) of headroom.
-WEEKLY_FOLLOWER_CHECK_DAY = os.environ.get("WEEKLY_FOLLOWER_CHECK_DAY", "Sunday")
+WEEKLY_FOLLOWER_CHECK_DAY = os.environ.get("WEEKLY_FOLLOWER_CHECK_DAY") or "Sunday"
 
 STATE_PATH = os.path.join(BASE_DIR, "state.json")
 RECENT_REELS_COUNT = 5
