@@ -1,16 +1,15 @@
 name: Daily IG stats to Telegram
 
 on:
-  schedule:
-    # 06:07 UTC ≈ 09:07 Greece time (EEST, summer). Deliberately NOT on the
-    # hour (06:00) — round-hour crons are the most popular slot on GitHub
-    # Actions and queue up behind everyone else's, which is why the first
-    # two runs landed ~2h late (07:57-07:58 UTC instead of 06:00). GitHub's
-    # own guidance is to pick an off-peak minute to avoid that queueing.
-    # During Greek winter time (EET, UTC+2) this fires at 08:07 local
-    # instead of 09:07 — see README.md for how to shift it after the DST
-    # change in late October.
-    - cron: "7 6 * * *"
+  # GitHub's own `schedule:` trigger was dropped (2026-08-20) — even after
+  # moving off the round-hour slot (06:07 UTC instead of 06:00) to dodge
+  # queueing, runs still landed ~2h late (08:07 UTC instead of 06:07, twice
+  # in a row). This looks like general GitHub Actions schedule-trigger
+  # unreliability on low-activity/private repos, not something fixable by
+  # picking a different minute. Timing is now driven externally: a
+  # cron-job.org job POSTs to this workflow's `workflow_dispatch` REST
+  # endpoint at the exact desired time every day. See README.md for the
+  # external cron setup.
   workflow_dispatch: {}
 
 permissions:

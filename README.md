@@ -59,16 +59,41 @@ python notifier.py
 4. Tab **Actions** → επίλεξε το workflow "Daily IG stats to Telegram" →
    **Run workflow** για δοκιμή χωρίς να περιμένεις το πρωινό cron.
 
-## Ωράριο & DST caveat
+## 5. Εξωτερικό χρονοδιάγραμμα (cron-job.org)
 
-Το cron (`.github/workflows/daily-stats.yml`) είναι ορισμένο για
-`06:07 UTC` ≈ 09:07 ώρα Ελλάδας το καλοκαίρι (EEST, UTC+3) — σκόπιμα ΟΧΙ
-στρογγυλή ώρα (`06:00`), γιατί οι στρογγυλές ώρες είναι το πιο δημοφιλές
-cron slot παγκοσμίως και μπαίνουν σε ουρά· τα δύο πρώτα runs καθυστέρησαν
-~2 ώρες (07:57-07:58 UTC) γι' αυτόν ακριβώς τον λόγο. Τον Οκτώβριο, όταν η
-Ελλάδα γυρνάει σε χειμερινή ώρα (EET, UTC+2), το μήνυμα θα φτάνει στις
-08:07 αντί 09:07, εκτός αν αλλάξεις το cron σε `7 7 * * *` χειμερινά (και
-το ξαναγυρίσεις σε `7 6 * * *` την άνοιξη).
+Το `schedule:` trigger του ίδιου του GitHub Actions αφαιρέθηκε
+(2026-08-20) — ακόμα και μετακινώντας το εκτός στρογγυλής ώρας (`06:07 UTC`
+αντί `06:00`) για να αποφύγουμε το queueing, το run συνέχισε να καθυστερεί
+συστηματικά ~2 ώρες (π.χ. 08:07 UTC αντί 06:07 UTC στις 20/8). Φαίνεται
+γενική αναξιοπιστία του GitHub Actions schedule trigger σε ιδιωτικά repos
+με χαμηλή δραστηριότητα, όχι κάτι που διορθώνεται επιλέγοντας άλλο λεπτό.
+Το ωράριο τώρα το κρατάει ένα **εξωτερικό cron** ([cron-job.org](https://cron-job.org),
+δωρεάν) που καλεί απευθείας το GitHub REST API για να πυροδοτήσει το
+workflow (`workflow_dispatch`):
+
+1. **Δημιούργησε ένα GitHub Personal Access Token** (Settings προσωπικού
+   λογαριασμού, όχι του repo) → Developer settings → Fine-grained tokens →
+   Generate new token:
+   - Repository access: μόνο το `ig-stats-notifier`
+   - Permissions: **Actions → Read and write**
+   - Μην το βάλεις πουθενά στο repo/secrets — θα το βάλεις μόνο στο
+     cron-job.org στο επόμενο βήμα.
+2. **Λογαριασμός στο [cron-job.org](https://cron-job.org)** (δωρεάν) →
+   δημιούργησε νέο cronjob:
+   - URL: `https://api.github.com/repos/AngelMak88/ig-stats-notifier/actions/workflows/daily-stats.yml/dispatches`
+   - Method: `POST`
+   - Headers:
+     - `Accept: application/vnd.github+json`
+     - `Authorization: Bearer <το PAT από το βήμα 1>`
+     - `X-GitHub-Api-Version: 2022-11-28`
+   - Body (raw JSON): `{"ref":"main"}`
+   - Schedule: καθημερινά στις **09:00**, με **timezone = Europe/Athens**
+     (το cron-job.org διαχειρίζεται μόνο του το καλοκαιρινή/χειμερινή ώρα,
+     άρα δεν χρειάζεται πια χειροκίνητη αλλαγή τον Οκτώβριο).
+3. Δοκίμασε το cronjob με το κουμπί "Run now" στο cron-job.org και
+   επιβεβαίωσε ότι εμφανίζεται νέο run στο tab **Actions** του repo μέσα σε
+   λίγα δευτερόλεπτα (workflow_dispatch runs ξεκινούν σχεδόν αμέσως, σε
+   αντίθεση με το schedule trigger).
 
 ## Request budget (RapidAPI free plan, 150/μήνα)
 
